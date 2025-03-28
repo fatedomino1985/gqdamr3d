@@ -1,0 +1,74 @@
+max_step  = 1000000000 #2
+stop_time = 18.7500e-06
+restart_chkfile = "init"
+#restart_chkfile = "/home/khaitaliev/amrex-work/amrex/Tutorials/gqdamr3d/Exec/WaterColumnInteraction/chk00600/"
+
+geometry.is_periodic =  0 0 0
+geometry.coord_sys   =  0            # 0 => cart
+geometry.prob_lo     = -0.015  -0.015   0.0
+geometry.prob_hi     =  0.030  0.015 0.0015
+
+amr.n_cell           =  140 80 4 #1200 400 40 #240 80 8 #120 40 4 #240 80 8 (np=3? - block factor 2 vs 8)
+
+amr.v = 1
+amr.max_level         = 0 #4    	# maximum level number allowed
+amr.ref_ratio         = 2 2 2 2 	# refinement ratio
+amr.regrid_int        = 8 #8     	# how often to regrid
+amr.blocking_factor_x = 2 #8     	# block factor in x-direction
+amr.blocking_factor_y = 2 #8     	# block factor in y-direction
+amr.blocking_factor_z = 2 #8     	# block factor in z-direction
+amr.max_grid_size     = 20000 # this is the number of cells in 1 block. And there can be many blocks.
+
+amr.checkpoint_files_output = 0 #0  # write checkpoint files or not
+amr.check_int = 600 #100
+amr.plot_files_output = 1   		# write plot files or not
+amr.plot_int = 500          		#10 #1 # write plotfile every ? steps
+amr.plot_vars = "rho_a", "rho_b", "ux", "uy", "uz", "p", "E", "T", "Va" # = ALL
+
+qgdSolver.cfl = 0.1              	# CFL number
+qgdSolver.deltaT0 = 5.0e-10      	#1.0e-11 #1.0e-12 #3.125e-10 #-3.90625e-9 #1.0e-8 #0.001 #0.8        # delatT
+qgdSolver.refine_condition = 3   	# 0 - grad(U); 1 - grad(rho); 2 - localRe
+qgdSolver.refine_dengrad = 0.01  	#0.003 # refine dengrad level
+
+gasProperties.gamma_a	=  1.4          # gas gamma_a
+gasProperties.gamma_b 	=  2.8          # liquid gamma_b
+gasProperties.R_a 		=  287.0        # gas Ra
+gasProperties.R_b 		=  2691.0       # liquid Rb
+#gasProperties.Pr 		=  1            # gas Pr number, wo 
+#gasProperties.mut		=  0.0          # gas viscosity, wo 
+#+gasProperties.m_a 	=  28.9686      # gas ma for R_a - not needed
+#+gasProperties.m_b 	=               # liquid mb R_b, no, just use Rb - not needed
+gasProperties.pL 		=  2.35438e+05  # pressure left
+gasProperties.pR 		=  1.0e+05      # p right
+gasProperties.painf 	=  0.0          # gas added p
+gasProperties.pbinf 	=  8.5e+08      # liquid added p
+gasProperties.T1 		=  381.85       # Temperature left
+gasProperties.T2 		=  293.15       # T right
+gasProperties.u1x 		=  225.86       # ux left
+gasProperties.u2x 		=  0.0          # ux right
+gasProperties.u1y 		=  0.0          # uy left
+gasProperties.u2y 		=  0.0          # uy right
+gasProperties.u1z 		=  0.0          # uz left
+gasProperties.u2z 		=  0.0          # uz right
+gasProperties.E_in01	=  0.0          # added initial internal energy left
+gasProperties.E_in02 	=  0.0          # added initial internal energy right
+gasProperties.esp 		=  1.0e-05      # mixing
+gasProperties.x_bub 	=  0.0          # indent
+gasProperties.r_bub 	=  3.2e-03      # the radius of the ball 
+gasProperties.midX 		= -4.0e-03      # left or right
+gasProperties.Runiv   	=  8314         # universal gas constant
+
+qgd.alphaQgd =  1.1 					#0.9 #1.1 #0.8   # alpha QGD
+qgd.betaQgd  =  0.1 					#0.2 # beta QGD, for dt - not needed
+qgd.ScQgd    =  1.0                  	# QGD Sc number
+qgd.PrQgd    =  1.0                  	# QGD Pr number
+qgd.typeCs   =  1   					# typeCs for Cs
+qgd.isMMCs   =  0   					# isMMCs for maxmaxCs
+qgd.i_t      =  0   					# i_t for tau 
+#qgd.varScQgd = false               	# dynamic Sc true/false, wo 
+#qgd.dengradVal = 4                		# gardVal for dynamic Sc, wo 
+#qgd.pressure_limiter = true        	# pressure limiter on, wo 
+
+
+
+
