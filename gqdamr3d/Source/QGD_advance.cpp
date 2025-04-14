@@ -511,7 +511,6 @@ Real AmrQGD::advance (Real time, Real dt, int iteration, int ncycle)
 				VNew[bi](i,j+1,k,iuz) = VNew[bi](i,j+1,k,iuz) + Fuzy * hxz;
 				VNew[bi](i,j,k,iE) = VNew[bi](i,j,k,iE) - FEy * hxz;
 				VNew[bi](i,j+1,k,iE) = VNew[bi](i,j+1,k,iE) + FEy * hxz;
-				VNew[bi](i,j+1,k,iE) = VNew[bi](i,j+1,k,iE) + FEy * hxz;
 			}
 		}
 		//%% Z fluxes
