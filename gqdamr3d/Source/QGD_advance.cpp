@@ -21,10 +21,11 @@ Real AmrQGD::advance (Real time, Real dt, int iteration, int ncycle)
 	auto hz_k = dx[2]; 
 	
 	MultiFab& S_new = state[0].newData();
-	auto const& VNew = S_new.arrays();
+	auto const& VNew2 = S_new.arrays();//our real VNew
+	auto VNew = VNew2;//fake. because +1 XY,Z
 	MultiFab& S_old = state[0].oldData();
 	FillPatcherFill(S_old, 0, ncomp, nghost, time, State_Type, 0);
-
+	
 	auto const& VOld = S_old.arrays();
 
 	double maxCs = 0.;
@@ -35,6 +36,8 @@ Real AmrQGD::advance (Real time, Real dt, int iteration, int ncycle)
 	iT = 10, 
 	iCs = 11,  //or auto const& Cs = S_new[0].arrays();,  
 	iVa = 12, iVb = 13;
+	
+	//amrex::Array4<amrex::Real> Cs;?
 	
 	double alpha = alphaQgd;
 	
@@ -57,45 +60,22 @@ Real AmrQGD::advance (Real time, Real dt, int iteration, int ncycle)
 	double pa_inf = painf, pb_inf = pbinf;
 	
 	
-	/*//{
-		int nc1_x, nc1_y, nc1_z;//+3
-		//nc1_x = 700, nc1_y = 400, nc1_z = 8;
+	//{
+		int nc1_x, nc1_y, nc1_z;
 		amrex::Box box = S_new.boxArray()[0];
 		nc1_x = box.length(0), nc1_y = box.length(1), nc1_z = box.length(2);
 		int nc_x = nc1_x-1, nc_y = nc1_y-1, nc_z = nc1_z-1;
-		int nil = 0;//zero
-		int bi = 0;
-		int ze = 0;// -2
-		//amrex::Print() << "\n NumOfArrs nComp = " << S_new.nComp();
-		//amrex::Print() << "\n NumOfArrs ncomp = " << ncomp;
-		//amrex::Print() << "\n Nx = " << box.length(0);
-		//amrex::Print() << " Ny = " << box.length(1);
-		//mrex::Print() << " Nz = " << box.length(2) << "\n";
-		nil = -1;
-		nc_x = nc1_x, nc_y = nc1_y, nc_z = nc1_z;
-	//}*/
-	//int i=-1, j=0, k =0;
-	//amrex::Print() << ", " << VOld[bi](i,j,k,ip) << " vs "; amrex::Print()  << VNew[bi](i,j,k,ip); amrex::Print()  << " (i=" << i << ") \n";
+		int nil = -1;//lowBnd
+		//amrex::Print() << "\n NumOfArrs nComp = " << S_new.nComp(); amrex::Print() << "\n NumOfArrs ncomp = " << ncomp;
+		//amrex::Print() << "\n Nx = " << box.length(0); amrex::Print() << " Nz = " << box.length(2) << "\n";
+	//}
 	
-	//S_new = {0};
-	//-VNew[0] = {0};
+
 	amrex::ParallelFor(S_old, [=] AMREX_GPU_DEVICE (int bi, int i, int j, int k)
 	{
-		for (int ia=0; ia<ncomp; ia++){//for (int ip=0; ip<16; ip++)
+		for (int ia=0; ia<ncomp; ia++){
 			VNew[bi](i,j,k,ia) = 0.0;
-			//amrex::Print() << ", ia= " << ia << "\n";//14=0..13
-			//-VNew[bi](i-1,j,k,ia) = 0.0;
-			/*VNew[bi](i+1,j,k,ia) = 0.0;//->if i=endI for endI+1 
-			//-VNew[bi](i,j-1,k,ia) = 0.0;
-			VNew[bi](i,j+1,k,ia) = 0.0;//if j>ncx
-			//-VNew[bi](i,j,k-1,ia) = 0.0;
-			VNew[bi](i,j,k+1,ia) = 0.0;//find way for all 'ParallelFor' (w bnd)
-			//-VNew[bi](i,j,k-2,ia) = 0.0;VNew[bi](i,j,k+2,ia) = 0.0;
-			*/
 		}
-		//if
-			//amrex::Print() << ", " << VNew[bi](i,j,-1,iuz) << " (i=" << i << ") \n";
-			//amrex::Print() << ", " << VNew[bi](i,j,4+1,iuz) << " (i=" << i << ") \n";
 	});
 	
 	//%% Time step
@@ -103,8 +83,13 @@ Real AmrQGD::advance (Real time, Real dt, int iteration, int ncycle)
 	if (typeCs == 1) {
 		// typeCs = 1 - according to Zlotnik's seminar, it is more correct
 		// [new2].(33)
-		amrex::ParallelFor(S_old, [=, &maxCs] AMREX_GPU_DEVICE (int bi, int i, int j, int k)
+		amrex::ParallelFor(S_old, S_old.nGrowVect()
+		, [=, &maxCs] AMREX_GPU_DEVICE (int bi, int i, int j, int k)
 		{
+			//if (i >= nil && i <= nc_x && j >= nil && j <= nc_y && k >= nil && k <= nc_z)
+			{
+			//amrex::Print() << ", i= " << i << " j= " << j << " k= " << k << "\n";
+			
 			double ro = VOld[bi](i,j,k,ir);
 			double roa = VOld[bi](i,j,k,ira); double rob = VOld[bi](i,j,k,irb);
 			double p = VOld[bi](i,j,k,ip);
@@ -125,20 +110,21 @@ Real AmrQGD::advance (Real time, Real dt, int iteration, int ncycle)
 			VNew[bi](i,j,k,iCs) = Cs;
 			if (isnan(VNew[bi](i,j,k,iCs)) || isinf(VNew[bi](i,j,k,iCs)) || VNew[bi](i,j,k,iCs) <= 0 )
 			{
-				VNew[bi](i,j,k,iCs) = 1.0 * pow(10, -8);
-				Cs = VNew[bi](i,j,k,iCs);
+				VNew[bi](i,j,k,iCs) = 1.0 * pow(10, -8);//Cs = VNew[bi](i,j,k,iCs);
+				amrex::Print() << " error Cs = " << Cs << "\n";
 				exit(EXIT_FAILURE);
 			}
 			if (Cs > maxCs) 
 			{
 				maxCs = Cs;
 			}
+			}
 		});
 	}
 	else if (typeCs == 100) {
 		// H_2D считает, но не долго.Лучше самую первую Cs
 		// А вот I_2D на стеках считает
-		amrex::ParallelFor(S_old, [=, &maxCs] AMREX_GPU_DEVICE (int bi, int i, int j, int k)
+		amrex::ParallelFor(S_old, S_old.nGrowVect(), [=, &maxCs] AMREX_GPU_DEVICE (int bi, int i, int j, int k)
 		{
 			double rma = VOld[bi](i,j,k,ira), rmb = VOld[bi](i,j,k,irb);
 			double gamCs = gma * rma * Ra + gmb * rmb * Rb;
@@ -166,7 +152,7 @@ Real AmrQGD::advance (Real time, Real dt, int iteration, int ncycle)
 		// almost the same as 100.
 		// 7 page, after formula(19) % On Regularized Systems of Equations for Gas
 		// Mixture Dynamics with New Regularizing Velocities and Diffusion Fluxes
-		amrex::ParallelFor(S_old, [=, &maxCs] AMREX_GPU_DEVICE (int bi, int i, int j, int k)
+		amrex::ParallelFor(S_old, S_old.nGrowVect(), [=, &maxCs] AMREX_GPU_DEVICE (int bi, int i, int j, int k)
 		{
 			double rm = VOld[bi](i,j,k,ir), rma = VOld[bi](i,j,k,ira), rmb = VOld[bi](i,j,k,irb);
 			double cvm = (rma * cva + rmb * cvb) / rm; double cpm = (rma * cpa + rmb * cpb) / rm;
@@ -181,13 +167,13 @@ Real AmrQGD::advance (Real time, Real dt, int iteration, int ncycle)
 	}
 	
 	if (isMMCs == 1) {//maxmaxCs
-		amrex::ParallelFor(S_old, [=] AMREX_GPU_DEVICE (int bi, int i, int j, int k)
+		amrex::ParallelFor(S_old, S_old.nGrowVect(), [=] AMREX_GPU_DEVICE (int bi, int i, int j, int k)
 		{
 			VNew[bi](i,j,k,iCs) = maxCs;
 		});
 	}
 	
-	double h = 1.0 / 3.0 * (hx_i + hy_j + hz_k);
+	//double h = 1.0 / 3.0 * (hx_i + hy_j + hz_k);
 	//++dt = beta * h / mmCsui_global;//% [2new].(75) //in main const
 	/*+{//Check dt<=dt_test
 		int i_u = 1;
@@ -213,13 +199,17 @@ Real AmrQGD::advance (Real time, Real dt, int iteration, int ncycle)
 		}
 	}+*/
 	
-    amrex::ParallelFor(S_old, [=] AMREX_GPU_DEVICE (int bi, int i, int j, int k)
+    amrex::ParallelFor(S_old, S_old.nGrowVect(), [=] AMREX_GPU_DEVICE (int bi, int i, int j, int k)
     {
+		//if(k==0 && j==0) std::cout << "i = " << i << "\n";//140=> 0..139, but bnd -2,-1 and 140,141
+		//fprintf(stderr, "\n test");
+		//amrex::Print() << ", i= " << i << " j= " << j << " k= " << k << "\n";
+		
 		double xira, yira, zira;//for test5
 
 		double rm, rma, rmb;
 		double cvm, cpm, gam;
-		double sigma_a, sigma_b;
+		//double sigma_a, sigma_b;
 		
 		double hx4, hy4, hz4;
 		double hxy, hxz, hyz;
@@ -243,35 +233,24 @@ Real AmrQGD::advance (Real time, Real dt, int iteration, int ncycle)
 		double E_in0m, droex, droey, droez, drox, droy, droz, qstx, qsty, qstz;
 		double FEx, FEy, FEz;
 		
-		double b, c, d;
-		double dts;
+		//double b, c, d;
+		//double dts;
 		double h;
-		double adE_in;
+		//double adE_in;
 		
-		//if (i > nil && i < nc_x && j > nil && j < nc_y && k > nil && k < nc_z){
-		/*--before me: already 0=VNew
-        VNew[bi](i,j,k,ir) = 0.0; VNew[bi](i,j,k,ira) = 0.0; VNew[bi](i,j,k,irb) = 0.0;
-		VNew[bi](i,j,k,iux) = 0.0; VNew[bi](i,j,k,iuy) = 0.0; VNew[bi](i,j,k,iuz) = 0.0;
-		VNew[bi](i,j,k,iE) = 0.0;*/
-		//test5
-        /*VNew[bi](i,j,k,ir) = 2.*pow(10, -8); VNew[bi](i,j,k,ira) = pow(10, -8); VNew[bi](i,j,k,irb) = pow(10, -8);
-		VNew[bi](i,j,k,iux) = pow(10, -8); VNew[bi](i,j,k,iuy) = pow(10, -8); VNew[bi](i,j,k,iuz) = pow(10, -8);
-		VNew[bi](i,j,k,iE) = pow(10, -8);
-		*/
-		/*VNew[bi](i,j,k,iT) = VOld[bi](i,j,k,iT);
-		VNew[bi](i,j,k,iVa) = VOld[bi](i,j,k,iVa);
-		VNew[bi](i,j,k,iVb) = VOld[bi](i,j,k,iVb);
-		VNew[bi](i,j,k,iE_in) = VOld[bi](i,j,k,iE_in);//pow(10, -8);
-		*/
-		//}
 		
 		//%%  X fluxes и Y fluxes
+		//if(1==0)
 		//if (k > nil && k < nc_z)
+		//?if (i > 0 && j > 0 && k > 0)//if (i > 0 && i < 139 && j > 0 && j < 79 && k > 0 && k < 3)
+		//if (k > nil && k <= nc_z)
+		if (i > -2 && j > -2 && k > -2)
 		{
 			hz4 = 4*dx[2];//hz[k + 1] + 2.0 * hz_k + hz[k - 1];
 			//%%  X fluxes
 			//if(1==0)
 			//if (j > nil && j < nc_y && i < nc_x)
+			//if (i >= nil && i <= nc_x && j > nil && j <= nc_y)
 			{
 				hy4 = 4*dx[1];//hy[j + 1] + 2.0 * hy_j + hy[j - 1]; //% 4 * hy_j;
 			
@@ -400,6 +379,7 @@ Real AmrQGD::advance (Real time, Real dt, int iteration, int ncycle)
 			//%%  Y fluxes
 			//if(1==0)
 			//if (i > nil && i < nc_x && j < nc_y)
+			//if (i > nil && i <= nc_x && j >= nil && j <= nc_y)
 			{
 				hx4 = 4*dx[0];//hx[i + 1] + 2.0 * hx_i + hx[i - 1];
 				
@@ -516,6 +496,9 @@ Real AmrQGD::advance (Real time, Real dt, int iteration, int ncycle)
 		//%% Z fluxes
 		//if(1==0)
 		//if (i > nil && i < nc_x && j > nil && j < nc_y && k < nc_z)
+		//-?if (i > 0 && j > 0 && k > 0)//if (i > 0 && i < 139 && j > 0 && j < 79 && k > 0 && k < 3)
+		//if (i > nil && i <= nc_x && j > nil && j <= nc_y && k >= nil && k <= nc_z)
+		if (i > -2 && j > -2 && k > -2)
 		{
 			hx4 = 4*dx[0];//hx[i + 1] + 2.0 * hx_i + hx[i - 1];
 			hy4 = 4*dx[1];//hy[j + 1] + 2.0 * hy_j + hy[j - 1];
@@ -650,10 +633,26 @@ Real AmrQGD::advance (Real time, Real dt, int iteration, int ncycle)
 		
 		// New variables. Saved
 		VNew[bi](i,j,k,iE_in0) = VOld[bi](i,j,k,iE_in0);
+		});
+		amrex::ParallelFor(S_old, [=] AMREX_GPU_DEVICE (int bi, int i, int j, int k){
 		// New variables
+		
+		double xira=-1, yira=-1, zira=-1;
+		
+		double sigma_a, sigma_b;
+		
+		double cvm, cpm, gam;
+		
+		double b, c, d;
+		double dts;
+		double h;
+		double adE_in;
+		
 		dts = dt / (hx_i * hy_j * hz_k);
 		h = 1.0/3. * (hx_i + hy_j + hz_k);
 		//if (i > nil && i < nc_x && j > nil && j < nc_y && k > nil && k < nc_z)
+		//-if (i > 0 && i < 139 && j > 0 && j < 79 && k > 0 && k < 3)
+		//if (i > nil && i <= nc_x && j > nil && j <= nc_y && k > nil && k <= nc_z)
 		{
 			xira = VOld[bi](i,j,k,ira); yira = VNew[bi](i,j,k,ira); zira = dts;
 			VNew[bi](i,j,k,ira) = VNew[bi](i,j,k,ira) * dts + VOld[bi](i,j,k,ira); VNew[bi](i,j,k,irb) = VNew[bi](i,j,k,irb) * dts + VOld[bi](i,j,k,irb);
@@ -738,7 +737,14 @@ Real AmrQGD::advance (Real time, Real dt, int iteration, int ncycle)
 				exit(EXIT_FAILURE);
 			}//*/
 		}
-		
+		/*else
+		{
+			//if (i >= nil && i <= nc1_x && j >= nil && j <= nc1_y && k >= nil && k <= nc1_z)
+				for (int ia=0; ia<ncomp; ia++)
+					VNew[bi](i,j,k,ia) = VOld[bi](i,j,k,ia);
+		}*/
+		for (int ia=0; ia<ncomp; ia++)
+					VNew[bi](i,j,k,ia) = VNew2[bi](i,j,k,ia);
     });
 	
 	//exit(EXIT_FAILURE);
