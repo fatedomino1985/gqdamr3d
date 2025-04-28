@@ -11,32 +11,31 @@ AmrQGD::initData ()
 	MultiFab& S_new = get_new_data(State_Type);
 	auto const& snew = S_new.arrays();
 
-	amrex::ParallelFor(S_new,
-		[=] AMREX_GPU_DEVICE (int bi, int i, int j, int k) noexcept
-	{
-		Real x = problo[0] + (i+0.5)*dx[0];
-		Real y = problo[1] + (j+0.5)*dx[1];
-
-		//%%3.5 Shock/Water-Column interaction [3]Китамура
-		double gma = gamma_a, gmb = gamma_b;
+	//%%3.5 Shock/Water-Column interaction [3]Китамура
+	double gma = gamma_a, gmb = gamma_b;
 		
-		double Ra = RGas_a;
-		double Rb = RGas_b;
-		double cva = Ra / (gma - 1); // 717.5; % Air
-		double cvb = Rb / (gmb - 1); // 1495; % Water
+	double Ra = RGas_a;
+	double Rb = RGas_b;
+	double cva = Ra / (gma - 1); // 717.5; % Air
+	double cvb = Rb / (gmb - 1); // 1495; % Water
         
 		
-		int ir = 0, ira = 1, irb = 2, 
+	int ir = 0, ira = 1, irb = 2, 
 		iux = 3, iuy = 4, iuz = 5,
 		ip = 6, iE = 7, iE_in = 8, iE_in0 = 9,
 		iT = 10, 
 		iCs = 11,
 		iVa = 12, iVb = 13;
 		
-		double pa_inf = painf;
-		double pb_inf = pbinf;
+	double pa_inf = painf;
+	double pb_inf = pbinf;
 		
-			
+	amrex::ParallelFor(S_new,
+		[=] AMREX_GPU_DEVICE (int bi, int i, int j, int k) noexcept
+	{
+		Real x = problo[0] + (i+0.5)*dx[0];
+		Real y = problo[1] + (j+0.5)*dx[1];
+
 		double xc = x - x_bub;//(x[i] + x[i - 1]) * 0.5 - x_bub;//??
 		double xc0 = x;
 		double yc = y;//(y[j] + y[j - 1]) * 0.5;
@@ -44,13 +43,13 @@ AmrQGD::initData ()
 
 		if (x <= midX)
 		{// Left
-			snew[bi](i,j,k,ip) = pL;   						//p
+			snew[bi](i,j,k,ip) = pL;   							//p
 			snew[bi](i,j,k,iux) = u1x;  						//Ux
 			snew[bi](i,j,k,iuy) = u1y;  						//Uy
 			snew[bi](i,j,k,iuz) = u1z;  						//Uz
 			snew[bi](i,j,k,iT) = T1;    						//T
-			snew[bi](i,j,k,iVa) = 1 - esp;					//Va
-			snew[bi](i,j,k,iVb) = 1 - snew[bi](i,j,k,iVa);	//Vb
+			snew[bi](i,j,k,iVa) = 1 - esp;						//Va
+			snew[bi](i,j,k,iVb) = 1 - snew[bi](i,j,k,iVa);		//Vb
 			snew[bi](i,j,k,iE_in0) = E_in01; 					//E_in0
         }
         else

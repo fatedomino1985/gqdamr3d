@@ -5,10 +5,10 @@ restart_chkfile = "init"
 
 geometry.is_periodic =  0 0 0
 geometry.coord_sys   =  0            # 0 => cart
-geometry.prob_lo     = -0.015  -0.015   0.0
-geometry.prob_hi     =  0.030  0.015 0.0015
+geometry.prob_lo     = -0.015  0.0   0.0 #-0.015  -0.015   0.0
+geometry.prob_hi     =  0.020  0.015 0.0015 #0.030  0.015 0.0015
 
-amr.n_cell           =  140 80 4 #1200 400 40 #240 80 8 #120 40 4 #240 80 8 (np=3? - block factor 2 vs 8)
+amr.n_cell           =  1400 600 6 #1800 600 12 #60 #1400 800 40 #140 80 4 #1200 400 40 #240 80 8 #120 40 4 #240 80 8 (np=3? - block factor 2 vs 8)
 
 amr.v = 1
 amr.max_level         = 0 #4    	# maximum level number allowed
@@ -37,7 +37,7 @@ gasProperties.R_b 		=  2691.0       # liquid Rb
 #gasProperties.Pr 		=  1            # gas Pr number, wo 
 #gasProperties.mut		=  0.0          # gas viscosity, wo 
 #+gasProperties.m_a 	=  28.9686      # gas ma for R_a - not needed
-#+gasProperties.m_b 	=               # liquid mb R_b, no, just use Rb - not needed
+#+gasProperties.m_b 	=               # liquid mb R_b, no, just use Rb. not needed
 gasProperties.pL 		=  2.35438e+05  # pressure left
 gasProperties.pR 		=  1.0e+05      # p right
 gasProperties.painf 	=  0.0          # gas added p

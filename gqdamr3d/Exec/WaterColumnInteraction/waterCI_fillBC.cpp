@@ -106,7 +106,10 @@ struct QGDBCFill
                 dest(i,j,k,1) = dest(i,jlo,k,1);
                 dest(i,j,k,2) = dest(i,jlo,k,2);
                 dest(i,j,k,3) = dest(i,jlo,k,3);
-                dest(i,j,k,4) = 0;//dest(i,jlo,k,iuy);//-dest(i,jlo,k,iuy); //- if y from 0, not -15e-03
+				
+                //dest(i,j,k,4) = 0;//dest(i,jlo,k,iuy);//-dest(i,jlo,k,iuy); //- if y from 0, not -15e-03
+                dest(i,j,k,4) = -dest(i,jlo,k,iuy);
+				
                 dest(i,j,k,5) = dest(i,jlo,k,5);
                 dest(i,j,k,6) = dest(i,jlo,k,6);
                 dest(i,j,k,7) = dest(i,jlo,k,7);
