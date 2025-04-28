@@ -114,7 +114,7 @@ Real AmrQGD::advance (Real time, Real dt, int iteration, int ncycle)
 				amrex::Print() << " error Cs = " << Cs << "\n";
 				exit(EXIT_FAILURE);
 			}
-			if (Cs > maxCs) 
+			if ((Cs > maxCs) )//&& (i > -2 && j > -2 && k > -2))
 			{
 				maxCs = Cs;
 			}
@@ -139,8 +139,7 @@ Real AmrQGD::advance (Real time, Real dt, int iteration, int ncycle)
 					rma, rmb, rm);
 			
 				VNew[bi](i,j,k,iCs) = 1.0 * pow(10, -8);//test5
-				//-VNew[bi](i,j,k,iCs) = VNew[bi](i-1,j-1,k-1,iCs);
-				Cs = VNew[bi](i,j,k,iCs);
+				amrex::Print() << " error Cs = " << Cs << "\n";
 				exit(EXIT_FAILURE);
 			}
 			if (Cs > maxCs) {
@@ -160,6 +159,11 @@ Real AmrQGD::advance (Real time, Real dt, int iteration, int ncycle)
 			double Tm = VOld[bi](i,j,k,iT);
 			double Cs = sqrt(gam * R * Tm);
 			VNew[bi](i,j,k,iCs) = Cs;
+			if (isnan(VNew[bi](i,j,k,iCs)) || isinf(VNew[bi](i,j,k,iCs)) || VNew[bi](i,j,k,iCs) <= 0 )
+			{
+				amrex::Print() << " error[Cs101] Cs = " << Cs << "\n";
+				exit(EXIT_FAILURE);
+			}
 			if (Cs > maxCs) {
 				maxCs = Cs;
 			}
@@ -170,6 +174,7 @@ Real AmrQGD::advance (Real time, Real dt, int iteration, int ncycle)
 		amrex::ParallelFor(S_old, S_old.nGrowVect(), [=] AMREX_GPU_DEVICE (int bi, int i, int j, int k)
 		{
 			VNew[bi](i,j,k,iCs) = maxCs;
+			//amrex::Print() << " 1maxCs = " << maxCs << "\n";
 		});
 	}
 	
@@ -205,7 +210,6 @@ Real AmrQGD::advance (Real time, Real dt, int iteration, int ncycle)
 		//fprintf(stderr, "\n test");
 		//amrex::Print() << ", i= " << i << " j= " << j << " k= " << k << "\n";
 		
-		double xira, yira, zira;//for test5
 
 		double rm, rma, rmb;
 		double cvm, cpm, gam;
@@ -241,8 +245,6 @@ Real AmrQGD::advance (Real time, Real dt, int iteration, int ncycle)
 		
 		//%%  X fluxes и Y fluxes
 		//if(1==0)
-		//if (k > nil && k < nc_z)
-		//?if (i > 0 && j > 0 && k > 0)//if (i > 0 && i < 139 && j > 0 && j < 79 && k > 0 && k < 3)
 		//if (k > nil && k <= nc_z)
 		if (i > -2 && j > -2 && k > -2)
 		{
@@ -265,30 +267,19 @@ Real AmrQGD::advance (Real time, Real dt, int iteration, int ncycle)
 				cvm = (rma * cva + rmb * cvb) / rm; cpm = (rma * cpa + rmb * cpb) / rm;
 				gam = cpm / cvm;
 
-				//++
 				cs = (VNew[bi](i,j,k,iCs) + VNew[bi](i+1,j,k,iCs)) * 0.5;
-				//-cs = (VOld[bi](i,j,k,iCs) + VOld[bi](i+1,j,k,iCs)) * 0.5;
-				//-cs = VNew[bi](i,j,k,iCs);//test5
-				/*if(k==0) //int(time/dt) == 1
-				amrex::Print() << ", i= " << i << " j= " << j << " k= " << k
-						<< " vk-1 = "<< VNew[bi](i+1,j,k,iCs) << " vk0 = "<< VNew[bi](i,j,k,iCs) << " \n";
-				*/
 				Tm = (VOld[bi](i,j,k,iT) + VOld[bi](i+1,j,k,iT)) * 0.5;
 
-				//h = sqrt(hx_i * hy_j);
 				h = sqrt(hx_i * hz_k);
 				tau = alpha * h / (cs + i_t * amrex::Math::abs(pow(uxm, 2) + pow(uym, 2) + pow(uzm, 2)));
-				//tau= 1e-11;//test5
 				visc = tau * pm * Sc;// nu[2](78) or [1].(20)
-				cond = tau * cpm * pm / Pr;// Злотник(78) (у него обратный)
+				cond = tau * cpm * pm / Pr;// Zlotnik(78) (inverse)
 				//cond = visc/(Pr*(gam-1));
 
 				dpx = (VOld[bi](i+1,j,k,ip) - VOld[bi](i,j,k,ip)) / hx_i;
 				dpy = (VOld[bi](i+1,j+1,k,ip) + VOld[bi](i,j+1,k,ip) - VOld[bi](i+1,j-1,k,ip) - VOld[bi](i,j-1,k,ip)) / hy4;
 				dpz = (VOld[bi](i+1,j,k+1,ip) + VOld[bi](i,j,k+1,ip) - VOld[bi](i+1,j,k-1,ip) - VOld[bi](i,j,k-1,ip)) / hz4;
-				
-				//std::cout << "QGD_advance.cpp VOld[bi](i+1,j-1,k,ip) = "<< VOld[bi](i+1,j-1,k,ip) << " [i="<< i << ",j=" << j << ",k=" << k << "]\n";
-				
+								
 				duxx = (VOld[bi](i+1,j,k,iux) - VOld[bi](i,j,k,iux)) / hx_i;
 				duxy = (VOld[bi](i+1,j+1,k,iux) + VOld[bi](i,j+1,k,iux) - VOld[bi](i+1,j-1,k,iux) - VOld[bi](i,j-1,k,iux)) / hy4;
 				duxz = (VOld[bi](i+1,j,k+1,iux) + VOld[bi](i,j,k+1,iux) - VOld[bi](i+1,j,k-1,iux) - VOld[bi](i,j,k-1,iux)) / hz4;
@@ -355,15 +346,7 @@ Real AmrQGD::advance (Real time, Real dt, int iteration, int ncycle)
 
 				hyz = hy_j * hz_k;
 
-				VNew[bi](i,j,k,ira) = VNew[bi](i,j,k,ira) - Froax * hyz; 
-				xira = VNew[bi](i,j,k,ira); 
-				//yira = tau; zira = uxm;
-				//yira = VOld[bi](i,j,k,iCs); zira = VNew[bi](i,j,k,iCs);
-				//yira = tau; zira = cs;
-				//yira = alpha * h / (cs); 
-				//zira = alpha * h / (cs + i_t * amrex::Math::abs(pow(uxm, 2) + pow(uym, 2) + pow(uzm, 2)));
-				//yira = Froax; zira = Wxa2;
-				
+				VNew[bi](i,j,k,ira) = VNew[bi](i,j,k,ira) - Froax * hyz;
 				VNew[bi](i+1,j,k,ira) = VNew[bi](i+1,j,k,ira) + Froax * hyz;
 				VNew[bi](i,j,k,irb) = VNew[bi](i,j,k,irb) - Frobx * hyz;
 				VNew[bi](i+1,j,k,irb) = VNew[bi](i+1,j,k,irb) + Frobx * hyz;
@@ -378,10 +361,9 @@ Real AmrQGD::advance (Real time, Real dt, int iteration, int ncycle)
 			}
 			//%%  Y fluxes
 			//if(1==0)
-			//if (i > nil && i < nc_x && j < nc_y)
 			//if (i > nil && i <= nc_x && j >= nil && j <= nc_y)
 			{
-				hx4 = 4*dx[0];//hx[i + 1] + 2.0 * hx_i + hx[i - 1];
+				hx4 = 4*dx[0];
 				
 				rm = (VOld[bi](i,j,k,ir) + VOld[bi](i,j+1,k,ir)) * 0.5;
 				// upwind
@@ -394,18 +376,13 @@ Real AmrQGD::advance (Real time, Real dt, int iteration, int ncycle)
 				cvm = (rma * cva + rmb * cvb) / rm; cpm = (rma * cpa + rmb * cpb) / rm;
 				gam = cpm / cvm;
 
-				//++
 				cs = (VNew[bi](i,j,k,iCs) + VNew[bi](i,j+1,k,iCs)) * 0.5;
-				//-cs = (VOld[bi](i,j,k,iCs) + VOld[bi](i,j+1,k,iCs)) * 0.5;
-				//-cs = VNew[bi](i,j,k,iCs);//test5
-				
 				Tm = (VOld[bi](i,j,k,iT) + VOld[bi](i,j+1,k,iT)) * 0.5;
 
 				h = sqrt(hx_i * hz_k);
 				tau = alpha * h / (cs + i_t * amrex::Math::abs(pow(uxm, 2) + pow(uym, 2) + pow(uzm, 2)));
-				//tau= 1e-11;//test5
 				visc = tau * pm * Sc; // nu[2](78) or [1](20)
-				cond = tau * cpm * pm / Pr; // Злотник(78)
+				cond = tau * cpm * pm / Pr; 
 				// cond = visc / (Pr * (gam - 1));
 
 				dpx = (VOld[bi](i+1,j+1,k,ip) + VOld[bi](i+1,j,k,ip) - VOld[bi](i-1,j+1,k,ip) - VOld[bi](i-1,j,k,ip)) / hx4;
@@ -476,10 +453,6 @@ Real AmrQGD::advance (Real time, Real dt, int iteration, int ncycle)
 				hxz = hx_i * hz_k;
 
 				VNew[bi](i,j,k,ira) = VNew[bi](i,j,k,ira) - Froay * hxz; 
-				//xira =   VOld[bi](i,j,k,iCs); 
-				//yira = VNew[bi](i,j,k,iCs); zira = cs;//VNew[bi](i,j+1,k,iCs);
-				//yira = VNew[bi](i,j,k,ira); 
-				
 				VNew[bi](i,j+1,k,ira) = VNew[bi](i,j+1,k,ira) + Froay * hxz;
 				VNew[bi](i,j,k,irb) = VNew[bi](i,j,k,irb) - Froby * hxz;
 				VNew[bi](i,j+1,k,irb) = VNew[bi](i,j+1,k,irb) + Froby * hxz;
@@ -495,12 +468,10 @@ Real AmrQGD::advance (Real time, Real dt, int iteration, int ncycle)
 		}
 		//%% Z fluxes
 		//if(1==0)
-		//if (i > nil && i < nc_x && j > nil && j < nc_y && k < nc_z)
-		//-?if (i > 0 && j > 0 && k > 0)//if (i > 0 && i < 139 && j > 0 && j < 79 && k > 0 && k < 3)
 		//if (i > nil && i <= nc_x && j > nil && j <= nc_y && k >= nil && k <= nc_z)
 		if (i > -2 && j > -2 && k > -2)
 		{
-			hx4 = 4*dx[0];//hx[i + 1] + 2.0 * hx_i + hx[i - 1];
+			hx4 = 4*dx[0];
 			hy4 = 4*dx[1];//hy[j + 1] + 2.0 * hy_j + hy[j - 1];
 			
 			rm = (VOld[bi](i,j,k,ir) + VOld[bi](i,j,k+1,ir)) * 0.5;
@@ -514,27 +485,15 @@ Real AmrQGD::advance (Real time, Real dt, int iteration, int ncycle)
 			cvm = (rma * cva + rmb * cvb) / rm; cpm = (rma * cpa + rmb * cpb) / rm;
 			gam = cpm / cvm;
 
-			//++
 			cs = (VNew[bi](i,j,k,iCs) + VNew[bi](i,j,k+1,iCs)) * 0.5;
-			//-cs = (VOld[bi](i,j,k,iCs) + VOld[bi](i,j,k+1,iCs)) * 0.5;
-			//-cs = VNew[bi](i,j,k,iCs);//test5
-					
 			Tm = (VOld[bi](i,j,k,iT) + VOld[bi](i,j,k+1,iT)) * 0.5;
 
-			h = sqrt(hx_i * hy_j);//??
+			h = sqrt(hx_i * hy_j);
 			tau = alpha * h / (cs + i_t * amrex::Math::abs(pow(uxm, 2) + pow(uym, 2) + pow(uzm, 2)));
-			//tau= 1e-11;//test5
-			//tau = 1e-06;
 			visc = tau * pm * Sc; // nu[2](78) or [1](20)
-			cond = tau * cpm * pm / Pr; // Злотник(78)
+			cond = tau * cpm * pm / Pr; // Zlotnik(78)
 			// cond = visc / (Pr * (gam - 1));
-			//if(i==(nc1_x-1) && j==(nc1_y-1) && k==(nc1_z-1))
-				//fprintf(stderr, "\n csz=%le csz1=%le %d,%d,%d", VOld[bi](i,j,k,iCs),VOld[bi](i,j,k+1,iCs), i,j,k);
-				//fprintf(stderr, "\n csz=%le csz1=%le %d,%d,%d", VNew[bi](i,j,k,iCs),VNew[bi](i,j,k+1,iCs), i,j,k);
-			//bnd Cs zero for VNew, but ok
-			//amrex::Print() << ", i= " << i << " j= " << j << " k= " << k
-			//				<< " v = "<< tau << " v2 = "<< h << " \n";
-							
+				
 			dpx = (VOld[bi](i+1,j,k+1,ip) + VOld[bi](i+1,j,k,ip) - VOld[bi](i-1,j,k+1,ip) - VOld[bi](i-1,j,k,ip)) / hx4;
 			dpx = (VOld[bi](i,j+1,k+1,ip) + VOld[bi](i,j+1,k,ip) - VOld[bi](i,j-1,k+1,ip) - VOld[bi](i,j-1,k,ip)) / hx4;
 			dpz = (VOld[bi](i,j,k+1,ip) - VOld[bi](i,j,k,ip)) / hz_k;
@@ -604,20 +563,6 @@ Real AmrQGD::advance (Real time, Real dt, int iteration, int ncycle)
 			hxy = hx_i * hy_j;
 
 			VNew[bi](i,j,k,ira) = VNew[bi](i,j,k,ira) - Froaz * hxy; 
-			zira = VNew[bi](i,j,k,ira);
-			xira = tau; yira = uzm; 
-			//xira = alpha * h ; yira = cs; 
-			
-			
-			//if((k+1)==4 && VNew[bi](i,j,k+1,iuz)!=0.0){
-			//	amrex::Print() << ", vk+1 = "<< VNew[bi](i,j,k+1,iuz) << " \n"; all good
-			//}
-			//if((k)==0 && VNew[bi](i,j,k-1,iuz)!=0.0){
-			//	amrex::Print() << ", i= " << i << " j= " << j << " k= " << k
-			//		<< "vk-1 = "<< VNew[bi](i,j,k-1,iuz) << " \n";
-			//}
-			//amrex::Print() << ", k = "<< k << " \n";
-		
 			VNew[bi](i,j,k+1,ira) = VNew[bi](i,j,k+1,ira) + Froaz * hxy;
 			VNew[bi](i,j,k,irb) = VNew[bi](i,j,k,irb) - Frobz * hxy;
 			VNew[bi](i,j,k+1,irb) = VNew[bi](i,j,k+1,irb) + Frobz * hxy;
@@ -637,8 +582,6 @@ Real AmrQGD::advance (Real time, Real dt, int iteration, int ncycle)
 		amrex::ParallelFor(S_old, [=] AMREX_GPU_DEVICE (int bi, int i, int j, int k){
 		// New variables
 		
-		double xira=-1, yira=-1, zira=-1;
-		
 		double sigma_a, sigma_b;
 		
 		double cvm, cpm, gam;
@@ -650,14 +593,11 @@ Real AmrQGD::advance (Real time, Real dt, int iteration, int ncycle)
 		
 		dts = dt / (hx_i * hy_j * hz_k);
 		h = 1.0/3. * (hx_i + hy_j + hz_k);
-		//if (i > nil && i < nc_x && j > nil && j < nc_y && k > nil && k < nc_z)
-		//-if (i > 0 && i < 139 && j > 0 && j < 79 && k > 0 && k < 3)
+		
 		//if (i > nil && i <= nc_x && j > nil && j <= nc_y && k > nil && k <= nc_z)
 		{
-			xira = VOld[bi](i,j,k,ira); yira = VNew[bi](i,j,k,ira); zira = dts;
 			VNew[bi](i,j,k,ira) = VNew[bi](i,j,k,ira) * dts + VOld[bi](i,j,k,ira); VNew[bi](i,j,k,irb) = VNew[bi](i,j,k,irb) * dts + VOld[bi](i,j,k,irb);
 			
-			//fprintf(stderr, "\nold in newira=%le xira=%le yira=%le zira=%le ", VNew[bi](i,j,k,ira), xira, yira,zira);
 			if (VNew[bi](i,j,k,ira) < 0.0)
 				VNew[bi](i,j,k,ira) = 1.0 * pow(10, -8.);
 			if (VNew[bi](i,j,k,irb) < 0.0)
@@ -667,8 +607,6 @@ Real AmrQGD::advance (Real time, Real dt, int iteration, int ncycle)
 			VNew[bi](i,j,k,iuy) = VNew[bi](i,j,k,iuy) * dts + VOld[bi](i,j,k,ir) * VOld[bi](i,j,k,iuy); // +dt.*RSuy;
 			VNew[bi](i,j,k,iuz) = VNew[bi](i,j,k,iuz) * dts + VOld[bi](i,j,k,ir) * VOld[bi](i,j,k,iuz); // +dt.*RSuz;
 			VNew[bi](i,j,k,iE) = VNew[bi](i,j,k,iE) * dts + VOld[bi](i,j,k,iE); // +dt * RSE;
-
-			//+VNew[bi](i,j,0,iuz) = 0;
 			
 			VNew[bi](i,j,k,ir) = VNew[bi](i,j,k,ira) + VNew[bi](i,j,k,irb);
 			VNew[bi](i,j,k,iux) = VNew[bi](i,j,k,iux) / VNew[bi](i,j,k,ir); VNew[bi](i,j,k,iuy) = VNew[bi](i,j,k,iuy) / VNew[bi](i,j,k,ir); VNew[bi](i,j,k,iuz) = VNew[bi](i,j,k,iuz) / VNew[bi](i,j,k,ir);
@@ -695,13 +633,11 @@ Real AmrQGD::advance (Real time, Real dt, int iteration, int ncycle)
 				fprintf(stderr, "\nError in p: i=%d j=%d k=%d, bi=%d, p=%g, "
 					"step = %d, time = %.8le", 
 					i, j, k, bi, VNew[bi](i,j,k,ip), 
-					int(time/dt), time);//--ncycle, time);// --iteration, time);
+					int(time/dt), time);// --iteration, time);
 				fprintf(stderr, "\nOther values: ro=%le, E=%le, E_in=%le, ux=%le, uy=%le, uz=%le\n"
 					, VNew[bi](i,j,k,ir), VNew[bi](i,j,k,iE), VNew[bi](i,j,k,iE_in), VNew[bi](i,j,k,iux), VNew[bi](i,j,k,iuy), VNew[bi](i,j,k,iuz));
 				double xbeg = -15*pow(10,-3);//A_3D
 				fprintf(stderr, "\nxyz in (%le, %le, %le)", xbeg+i*hx_i, j*hy_j, k*hz_k);
-				fprintf(stderr, "\nold in newira=%le xira=%le yira=%le zira=%le "
-					, VNew[bi](i,j,k,ira), xira, yira,zira);
 				exit(EXIT_FAILURE);
 			}
 			
@@ -709,40 +645,8 @@ Real AmrQGD::advance (Real time, Real dt, int iteration, int ncycle)
 			VNew[bi](i,j,k,iT) = 1.0 / VNew[bi](i,j,k,iT);
 			VNew[bi](i,j,k,iVa) = Ra * VNew[bi](i,j,k,ira) * VNew[bi](i,j,k,iT) / (VNew[bi](i,j,k,ip) + pa_inf); //[2].(48) or [new2].(41)
 			VNew[bi](i,j,k,iVb) = Rb * VNew[bi](i,j,k,irb) * VNew[bi](i,j,k,iT) / (VNew[bi](i,j,k,ip) + pb_inf);
-			
-			/*if(i==0 && j==0 && k==0 && int(time/dt) == 1)//0)
-			{
-				amrex::Print() << ", p: " << VOld[bi](i,j,k,ip) << " vs "; amrex::Print()  << VNew[bi](i,j,k,ip); amrex::Print()  << " (i=" << i << ") \n";
-				amrex::Print() << ", E: " << VOld[bi](i,j,k,iE) << " vs " << VNew[bi](i,j,k,iE) << "\n";
-				amrex::Print() << ", r: " << VOld[bi](i,j,k,ir) << " vs " << VNew[bi](i,j,k,ir) << "\n";
-				amrex::Print() << ", b vs c: " << b << " vs " << c << "\n";
-				amrex::Print() << ", sigma a vs b: " << sigma_a << " vs " << sigma_b << "\n";
-				amrex::Print() << ", E_in: " << VOld[bi](i,j,k,iE_in) << " vs " << VNew[bi](i,j,k,iE_in) << "\n";
-				double c_11 = (sigma_a * pb_inf + sigma_b * pa_inf);
-				double c_12 = VNew[bi](i,j,k,ir) * adE_in;
-				amrex::Print() << ", adE_in, c 1 vs 2: " << adE_in << ", " << c_11 << " vs " << c_12 << "\n";
-				for (int ip=0; ip<16; ip++){
-					amrex::Print() << ", arr: " << ip << " v=" << VOld[bi](i,j,k,ip) << "\n";
-					amrex::Print() << ", +-i1: " << VOld[bi](i-1,j,k,ip) << " vs " << VOld[bi](i+1,j,k,ip) << " \n";
-					amrex::Print() << ", +-j1: " << VOld[bi](i,j-1,k,ip) << " vs " << VOld[bi](i,j+1,k,ip) << " \n";
-					amrex::Print() << ", +-k1: " << VOld[bi](i,j,k-1,ip) << " vs " << VOld[bi](i,j,k+1,ip) << " \n";
-				}
-				for (int ip=0; ip<16; ip++){
-					amrex::Print() << ", OvsN: " << ip << " v: " << VOld[bi](i,j,k,ip) << " vs " << VNew[bi](i,j,k,ip) << "\n";
-					amrex::Print() << ", diff: " << ip << " => " << VNew[bi](i,j,k,ip) - VOld[bi](i,j,k,ip) << "\n";
-				}
-				//amrex::Print() << ", Sc vs Pr: " << Sc << " vs " << Pr << "\n";
-				amrex::Print() << "old in newira=" << VNew[bi](i,j,k,ira) << " xira=" << xira <<" yira="<<yira << " zira=" << zira << "\n";
-				//c=> E_in or E - init error irb
-				exit(EXIT_FAILURE);
-			}//*/
 		}
-		/*else
-		{
-			//if (i >= nil && i <= nc1_x && j >= nil && j <= nc1_y && k >= nil && k <= nc1_z)
-				for (int ia=0; ia<ncomp; ia++)
-					VNew[bi](i,j,k,ia) = VOld[bi](i,j,k,ia);
-		}*/
+		
 		for (int ia=0; ia<ncomp; ia++)
 					VNew[bi](i,j,k,ia) = VNew2[bi](i,j,k,ia);
     });

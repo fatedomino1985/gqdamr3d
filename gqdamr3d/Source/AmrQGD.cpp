@@ -11,7 +11,7 @@ int  AmrQGD::verbose = 0;
 Real AmrQGD::cfl = 0.2;
 Real AmrQGD::deltaT0 = 0.1;
 int AmrQGD::refcond = 0;
-Real AmrQGD::refdengrad = 1.2;//for what?
+Real AmrQGD::refdengrad = 1.2;//for 
 
 Real AmrQGD::gamma_a = 1.4;
 Real AmrQGD::gamma_b = 2.8;
