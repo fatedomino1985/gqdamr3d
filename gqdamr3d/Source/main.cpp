@@ -46,19 +46,22 @@ int main (int argc, char* argv[])
 	
     {
     //    auto amr = std::make_unique<AmrShallowWater>(getLevelBld());
-        MyAmr amr(getLevelBld());//Amr amr(getLevelBld());
-
+        //MyAmr amr(getLevelBld());//
+		Amr amr(getLevelBld());
+		
+		/*
         if (!restart_chkfile.empty() && restart_chkfile != "init") {
 			if (!std::filesystem::exists(restart_chkfile)) {
 				amrex::Abort("Restart checkpoint directory not found: " + restart_chkfile);
 			}
             // Restart from a checkpoint
             amrex::Print() << "Restarting from checkpoint: " << restart_chkfile << "\n";
-            amr.publicRestart(restart_chkfile); //amr.restart(restart_chkfile);
+            //amr.publicRestart(restart_chkfile); //
+			amr.restart(restart_chkfile);
         } else {
             // Initialize from scratch
             amr.init(strt_time, stop_time);
-        }
+        }*/
 
         while ( amr.okToContinue() &&
                 (amr.levelSteps(0) < max_step || max_step < 0) &&
