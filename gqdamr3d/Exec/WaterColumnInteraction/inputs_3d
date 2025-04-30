@@ -1,8 +1,14 @@
 max_step  = 1000000000 #2
 stop_time = 18.7500e-06
-#restart_chkfile = "init"
-#restart_chkfile = "/home/khaitaliev/amrex-work/amrex/Tutorials/gqdamr3d/Exec/WaterColumnInteraction/chk00600/"
-amr.restart = chk00010
+
+# *****************************************************************
+# Are we restarting from an existing checkpoint file?
+# you don't need anything else. 
+# see https://github.com/AMReX-Codes/amrex/issues/4435#issuecomment-2840138731
+# *****************************************************************
+#amr.restart = chk00010 # restart from this checkpoint file
+
+
 
 geometry.is_periodic =  0 0 0
 geometry.coord_sys   =  0            # 0 => cart
@@ -25,6 +31,7 @@ amr.check_int = 600 #100
 amr.plot_files_output = 1   		# write plot files or not
 amr.plot_int = 500          		#10 #1 # write plotfile every ? steps
 amr.plot_vars = "rho_a", "rho_b", "ux", "uy", "uz", "p", "E", "T", "Va" # = ALL
+
 
 qgdSolver.cfl = 0.1              	# CFL number
 qgdSolver.deltaT0 = 5.0e-10      	#1.0e-11 #1.0e-12 #3.125e-10 #-3.90625e-9 #1.0e-8 #0.001 #0.8        # delatT
