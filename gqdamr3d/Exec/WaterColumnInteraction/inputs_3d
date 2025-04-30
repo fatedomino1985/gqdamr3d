@@ -1,7 +1,8 @@
 max_step  = 1000000000 #2
 stop_time = 18.7500e-06
-restart_chkfile = "init"
+#restart_chkfile = "init"
 #restart_chkfile = "/home/khaitaliev/amrex-work/amrex/Tutorials/gqdamr3d/Exec/WaterColumnInteraction/chk00600/"
+restart_chkfile = chk00010
 
 geometry.is_periodic =  0 0 0
 geometry.coord_sys   =  0            # 0 => cart
